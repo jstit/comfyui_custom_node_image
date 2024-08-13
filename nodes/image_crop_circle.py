@@ -18,11 +18,11 @@ class ImageCropCircle:
     CATEGORY = "image/crop"
 
     def crop_circle(self, image):
-        size = min(image.size)
-        mask = Image.new("L", (size, size), 0)
+        width, height = image.size
+        mask = Image.new("L", (width, height), 0)
         draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, size, size), fill=255)
-        result = Image.new("RGBA", (size, size))
+        draw.ellipse((0, 0, width, height), fill=255)
+        result = Image.new("RGBA", (width, height))
         result.paste(image, (0, 0), mask)
         return (result,)
 
