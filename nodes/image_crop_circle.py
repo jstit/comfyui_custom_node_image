@@ -18,8 +18,16 @@ class ImageCropCircle:
     CATEGORY = "image/crop"
 
     def crop_circle(self, image):
+        # Ensure image is in the correct format
+        if len(image.shape) == 4:
+            image = image.squeeze(0)  # Remove batch dimension if present
+
+        if image.shape[0] == 1:
+            # If it's a grayscale image, repeat it to create an RGB image
+            image = image.repeat(3, 1, 1)
+
         # Convert the input tensor to a PIL Image
-        image = Image.fromarray(image.squeeze().permute(1, 2, 0).byte().numpy())
+        image = Image.fromarray(image.permute(1, 2, 0).byte().numpy())
 
         width, height = image.size
         size = min(width, height)
