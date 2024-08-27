@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image, ImageDraw
+import torch
 
 
 class ImageCropCircle:
@@ -18,44 +18,32 @@ class ImageCropCircle:
     CATEGORY = "image/crop"
 
     def crop_circle(self, image):
-        # Ensure image is in the correct format
-        if len(image.shape) == 4:
-            image = image.squeeze(0)  # Remove batch dimension if present
+        # Get dimensions from the image
+        _, h, w, _ = image.shape
 
-        if image.shape[0] == 1:
-            # If it's a grayscale image, repeat it to create an RGB image
-            image = image.repeat(3, 1, 1)
+        # Determine the size of the circle (use the smaller dimension)
+        size = min(h, w)
 
-        # Convert the input tensor to a PIL Image
-        image = Image.fromarray(image.permute(1, 2, 0).byte().numpy())
+        # Calculate the crop coordinates to center the circle
+        x = (w - size) // 2
+        y = (h - size) // 2
 
-        width, height = image.size
-        size = min(width, height)
-
-        # Calculate offsets to center the crop
-        left = (width - size) // 2
-        top = (height - size) // 2
-        right = left + size
-        bottom = top + size
+        # Crop the image to a square
+        cropped = image[:, y : y + size, x : x + size, :]
 
         # Create a circular mask
-        mask = Image.new("L", (size, size), 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, size, size), fill=255)
+        center = (size // 2, size // 2)
+        radius = size // 2
+        Y, X = np.ogrid[:size, :size]
+        dist_from_center = np.sqrt((X - center[0]) ** 2 + (Y - center[1]) ** 2)
+        mask = dist_from_center <= radius
 
-        # Ensure the image has an alpha channel
-        if image.mode != "RGBA":
-            image = image.convert("RGBA")
+        # Apply the mask
+        mask = torch.from_numpy(mask).float().unsqueeze(0).unsqueeze(-1)
+        mask = mask.expand_as(cropped)
+        result = cropped * mask
 
-        # Crop and apply mask
-        image = image.crop((left, top, right, bottom))
-        result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        result.paste(image, (0, 0), mask)
-
-        # Convert back to tensor format
-        result_tensor = np.array(result).astype(np.float32) / 255.0
-        result_tensor = np.moveaxis(result_tensor, -1, 0)
-        return (result_tensor,)
+        return (result,)
 
 
 # A dictionary that contains all nodes you want to export with their names
